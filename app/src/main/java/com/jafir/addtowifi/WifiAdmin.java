@@ -3,6 +3,7 @@ package com.jafir.addtowifi;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 
@@ -149,6 +150,7 @@ public class WifiAdmin {
         mWifiManager.disconnect();
     }
 
+
     //然后是一个实际应用方法，只验证过没有密码的情况：
     public WifiConfiguration CreateWifiInfo(String SSID, String Password, int Type) {
         WifiConfiguration config = new WifiConfiguration();
@@ -195,6 +197,33 @@ public class WifiAdmin {
             config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
             config.status = WifiConfiguration.Status.ENABLED;
         }
+        return config;
+    }
+
+    //PAEP 企业级连接方式
+    public WifiConfiguration CreateEnterpriseWifiInfo(String SSID, String username, String password) {
+        WifiConfiguration config = new WifiConfiguration();
+        config.allowedAuthAlgorithms.clear();
+        config.allowedGroupCiphers.clear();
+        config.allowedKeyManagement.clear();
+        config.allowedPairwiseCiphers.clear();
+        config.allowedProtocols.clear();
+
+        config.SSID = "\"" + SSID + "\"";
+
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+
+        WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
+
+        enterpriseConfig.setIdentity(username);
+
+        enterpriseConfig.setPassword(password);
+
+        enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.PEAP);
+
+        config.enterpriseConfig = enterpriseConfig;
         return config;
     }
 

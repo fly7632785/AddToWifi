@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,7 +17,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -38,7 +38,9 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            getData();
+            if (intent.getAction().equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)) {
+                getData();
+            }
         }
     };
 
@@ -50,10 +52,22 @@ public class MainActivity extends AppCompatActivity {
         initWifi();
     }
 
+    private void initView() {
+        mLisview = (ListView) findViewById(R.id.listview);
+        mRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe);
+        mRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                wifiAdmin.startScan();
+                mRefreshLayout.setRefreshing(false);
+            }
+        });
+    }
+
     private void initWifi() {
         wifiAdmin = new WifiAdmin(this);
         wifiAdmin.openWifi();
-        addAcount();
+        addAccount();
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
             if (checkPermissions()) {
                 wifiAdmin.startScan();
@@ -64,8 +78,8 @@ public class MainActivity extends AppCompatActivity {
         registerReceiver(receiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
     }
 
-    private void addAcount() {
-        wifiAdmin.addNetwork(wifiAdmin.CreateWifiInfo("MERCURY7C1B4A", "794935981", 3));
+    private void addAccount() {
+        wifiAdmin.addNetwork(wifiAdmin.CreateEnterpriseWifiInfo("van-staff_5G-EAP", "i@xloli.com", "12345678"));
         Toast.makeText(this, "success", Toast.LENGTH_SHORT).show();
     }
 
@@ -101,30 +115,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getData() {
-        StringBuilder builder = wifiAdmin.lookUpScan();
-        Log.d("debug", builder.toString());
-        List<ScanResult> data = wifiAdmin.getWifiList();
+        List<ScanResult> data = getConfigData();
         mAdapter = new WifiAdapter(this, android.R.layout.simple_list_item_1);
         mAdapter.addAll(data);
         mLisview.setAdapter(mAdapter);
     }
 
-    private void initView() {
-        mLisview = (ListView) findViewById(R.id.listview);
-        mRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe);
-        mRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                wifiAdmin.startScan();
-                mRefreshLayout.setRefreshing(false);
+    /**
+     * 显示已经配置好的wifi列表
+     *
+     * @return
+     */
+    private List<ScanResult> getConfigData() {
+        List<ScanResult> newData = new ArrayList<>();
+        List<WifiConfiguration> configData = wifiAdmin.getConfiguration();
+        List<ScanResult> data = wifiAdmin.getWifiList();
+        for (ScanResult scanResult : data) {
+            for (WifiConfiguration wifiConfiguration : configData) {
+                //如果扫描出来的里面也已经在配置里面就显示
+                String ssid = wifiConfiguration.SSID.substring(1, wifiConfiguration.SSID.length() - 1);
+                if (scanResult.SSID.equals(ssid)) {
+                    newData.add(scanResult);
+                }
             }
-        });
+        }
+        return newData;
     }
 
-
     class WifiAdapter extends ArrayAdapter<ScanResult> {
-
-
         public WifiAdapter(@NonNull Context context, @LayoutRes int resource) {
             super(context, resource);
         }
@@ -139,7 +157,6 @@ public class MainActivity extends AppCompatActivity {
             return text;
         }
     }
-
 
     @Override
     protected void onDestroy() {
